@@ -13,6 +13,7 @@ from schemas import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_TEMPERATURE,
     ChatMessage,
+    LLMConfig,
     ModelResponse,
     Provider,
     Role,
@@ -127,6 +128,7 @@ class OpenAIClient(BaseLLMClient):
             logger.info("OpenAIClient.chat finished (%d chars)", len(content))
             return self._success_response(content)
         except OpenAIError as exc:
+            # Catching specific errors like APITimeoutError / APIConnectionError / RateLimitError, we could trigger backoff and retry logic here.
             return self._error_response(exc)
 
     async def chat_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
@@ -196,6 +198,7 @@ class AnthropicClient(BaseLLMClient):
             logger.info("AnthropicClient.chat finished (%d chars)", len(content))
             return self._success_response(content)
         except AnthropicError as exc:
+            # Catching specific errors like APITimeoutError / APIConnectionError / RateLimitError, we could trigger backoff and retry logic here.
             return self._error_response(exc)
 
 
@@ -284,6 +287,7 @@ class GeminiClient(BaseLLMClient):
             logger.info("GeminiClient.chat finished (%d chars)", len(content))
             return self._success_response(content)
         except GeminiAPIError as exc:
+            # Catching specific errors like APITimeoutError / APIConnectionError / RateLimitError, we could trigger backoff and retry logic here.
             return self._error_response(exc)
 
 

@@ -1,11 +1,11 @@
 import argparse
 import asyncio
 import logging
-
-from factory import create_llm_client
-from llm import BaseLLMClient
-from schemas import ChatMessage, LLMConfig, Provider, Role
 from dotenv import load_dotenv
+
+from llm import BaseLLMClient
+from factory import LLMFactory
+from schemas import ChatMessage, LLMConfig, Provider, Role
 
 load_dotenv()
 
@@ -87,17 +87,26 @@ def build_clients(
     anthropic_enabled: bool,
     gemini_enabled: bool,
 ) -> list[BaseLLMClient]:
-    """Create clients only for the providers that were enabled via CLI flags."""
-    clients: list[BaseLLMClient] = []
+    """Create clients only for the providers that were enabled via CLI flags.
+
+    Providers whose API key is missing/empty are skipped with an error log
+    instead of aborting the whole run.
+    """
+    configs: list[LLMConfig] = []
     if openai_enabled:
-        clients.append(create_llm_client(LLMConfig(provider=Provider.OPENAI)))
+        configs.append(LLMConfig(provider=Provider.OPENAI))
     if anthropic_enabled:
-        clients.append(create_llm_client(LLMConfig(provider=Provider.ANTHROPIC)))
+        configs.append(LLMConfig(provider=Provider.ANTHROPIC))
     if gemini_enabled:
         # Increase max tokens to 1024 to take into account Gemini thinking tokens
-        clients.append(
-            create_llm_client(LLMConfig(provider=Provider.GEMINI, max_tokens=1024))
-        )
+        configs.append(LLMConfig(provider=Provider.GEMINI, max_tokens=1024))
+
+    clients: list[BaseLLMClient] = []
+    for config in configs:
+        try:
+            clients.append(LLMFactory.create_client(config))
+        except ValueError as exc:
+            logger.error("Skipping %s: %s", config.provider.value, exc)
     return clients
 
 
@@ -137,6 +146,12 @@ async def main(
         anthropic_enabled=anthropic_enabled,
         gemini_enabled=gemini_enabled,
     )
+    if not clients:
+        logger.error(
+            "No providers available: configure API keys for the selected providers"
+        )
+        return
+
     logger.info(
         "Providers selected: %s",
         ", ".join(client.provider.value for client in clients),
