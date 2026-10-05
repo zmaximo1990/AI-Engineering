@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    image: llm-chat:latest
+    env_file:
+      - .env
+    stdin_open: true   # keep STDIN open for interactive input()
+    tty: true          # allocate a TTY so prompts/streaming print cleanly
+    command: ["python", "main.py"]
