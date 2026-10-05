@@ -98,8 +98,7 @@ def build_clients(
     if anthropic_enabled:
         configs.append(LLMConfig(provider=Provider.ANTHROPIC))
     if gemini_enabled:
-        # Increase max tokens to 1024 to take into account Gemini thinking tokens
-        configs.append(LLMConfig(provider=Provider.GEMINI, max_tokens=1024))
+        configs.append(LLMConfig(provider=Provider.GEMINI))
 
     clients: list[BaseLLMClient] = []
     for config in configs:
