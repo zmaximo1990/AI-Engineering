@@ -1,10 +1,12 @@
-# Code Delivery for Modeule #1 | Multi-provider LLM clients
+# Code Delivery for Modeule #1 | Unified Async LLM Client
 
 Async Python demo that talks to **OpenAI**, **Anthropic**, and **Gemini** through a shared client interface (`chat` / `chat_stream`), a small factory, and Pydantic schemas.
 
 ## How it works
 
-When you run the app, it asks you to type the question or message you want to send. That prompt is then forwarded to **OpenAI**, **Anthropic**, and **Gemini** so you can compare their answers side by side (via `chat` and/or `chat_stream`).
+When you run the app, it asks you to type the question or message you want to send. That prompt is then forwarded to the providers you enable via CLI flags so you can compare their answers side by side (via `chat` and/or `chat_stream`). By default **OpenAI** and **Anthropic** are on; **Gemini** is off.
+
+Make sure to configure the API keys for the LLM providers you want to use (see [Environment variables](#environment-variables-with-python-dotenv) below).
 
 ## Requirements
 
@@ -138,7 +140,7 @@ GEMINI_API_KEY=...
 Run from this directory. The program prompts for a user message interactively.
 
 ```bash
-# Default: chat_stream ON, chat OFF
+# Default: chat_stream ON, chat OFF; openai + anthropic ON, gemini OFF
 python main.py
 
 # Enable non-streaming chat as well
@@ -149,6 +151,15 @@ python main.py --chat --no-chat-stream
 
 # Explicit stream flag (same as default)
 python main.py --chat-stream
+
+# Include Gemini as well (all three providers)
+python main.py --gemini
+
+# Anthropic + Gemini only
+python main.py --no-openai --gemini
+
+# Gemini only
+python main.py --no-openai --no-anthropic --gemini
 ```
 
 ### Docker
@@ -159,13 +170,15 @@ Requires [Docker](https://docs.docker.com/get-docker/) and Docker Compose. Creat
 # Build the image (python:3.12-slim + requirements)
 docker compose build
 
-# Default: chat_stream ON, chat OFF (interactive prompt)
+# Default: chat_stream ON, chat OFF; openai + anthropic ON (interactive prompt)
 docker compose run --rm app
 
 # Pass CLI flags after the service name
 docker compose run --rm app python main.py --chat
 docker compose run --rm app python main.py --chat --no-chat-stream
 docker compose run --rm app python main.py --chat-stream
+docker compose run --rm app python main.py --gemini
+docker compose run --rm app python main.py --no-openai --gemini
 ```
 
 `docker-compose.yaml` mounts env vars from `.env`, and enables `stdin_open` + `tty` so `input()` and streamed output work in the terminal.
@@ -174,8 +187,11 @@ docker compose run --rm app python main.py --chat-stream
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--chat` | off | Run `chat()` on all providers in parallel |
+| `--chat` | off | Run `chat()` on selected providers in parallel |
 | `--chat-stream` / `--no-chat-stream` | on | Run `chat_stream()` sequentially (one provider at a time) |
+| `--openai` / `--no-openai` | on | Include the OpenAI provider |
+| `--anthropic` / `--no-anthropic` | on | Include the Anthropic provider |
+| `--gemini` / `--no-gemini` | off | Include the Gemini provider |
 
 ## Notes
 
