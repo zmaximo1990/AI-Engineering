@@ -124,26 +124,28 @@ class OpenAIClient(BaseLLMClient):
                 temperature=self.temperature,
             )
             content = response.choices[0].message.content or ""
+            logger.info("OpenAIClient.chat finished (%d chars)", len(content))
+            return self._success_response(content)
         except OpenAIError as exc:
             return self._error_response(exc)
 
-        logger.info("OpenAIClient.chat finished (%d chars)", len(content))
-        return self._success_response(content)
-
     async def chat_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
         logger.info("OpenAIClient.chat_stream started (%d messages)", len(messages))
-        stream = await self._client.chat.completions.create(
-            model=self.model,
-            messages=self._to_openai_messages(messages),
-            max_tokens=self.max_tokens,
-            temperature=self.temperature,
-            stream=True,
-        )
-        async for chunk in stream:
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
-        logger.info("OpenAIClient.chat_stream finished")
+        try:
+            stream = await self._client.chat.completions.create(
+                model=self.model,
+                messages=self._to_openai_messages(messages),
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+                stream=True,
+            )
+            async for chunk in stream:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield delta
+            logger.info("OpenAIClient.chat_stream finished")
+        except OpenAIError as exc:
+            yield f"\n[⚠️ OpenAI Error: {exc}]"
 
 
 class AnthropicClient(BaseLLMClient):
@@ -191,11 +193,11 @@ class AnthropicClient(BaseLLMClient):
         try:
             response = await self._client.messages.create(**kwargs)
             content = response.content[0].text if response.content else ""
+            logger.info("AnthropicClient.chat finished (%d chars)", len(content))
+            return self._success_response(content)
         except AnthropicError as exc:
             return self._error_response(exc)
 
-        logger.info("AnthropicClient.chat finished (%d chars)", len(content))
-        return self._success_response(content)
 
     async def chat_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
         logger.info("AnthropicClient.chat_stream started (%d messages)", len(messages))
@@ -211,10 +213,13 @@ class AnthropicClient(BaseLLMClient):
         if system:
             kwargs["system"] = system
 
-        async with self._client.messages.stream(**kwargs) as stream:
-            async for text in stream.text_stream:
-                yield text
-        logger.info("AnthropicClient.chat_stream finished")
+        try:
+            async with self._client.messages.stream(**kwargs) as stream:
+                async for text in stream.text_stream:
+                    yield text
+            logger.info("AnthropicClient.chat_stream finished")
+        except AnthropicError as exc:
+            yield f"\n[⚠️ Anthropic Error: {exc}]"
 
 
 class GeminiClient(BaseLLMClient):
@@ -276,18 +281,21 @@ class GeminiClient(BaseLLMClient):
             session, latest = self._create_chat(messages)
             response = await session.send_message(latest)
             content = response.text or ""
-        except (GeminiAPIError, ValueError) as exc:
+            logger.info("GeminiClient.chat finished (%d chars)", len(content))
+            return self._success_response(content)
+        except GeminiAPIError as exc:
             return self._error_response(exc)
 
-        logger.info("GeminiClient.chat finished (%d chars)", len(content))
-        return self._success_response(content)
 
     async def chat_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
         logger.info("GeminiClient.chat_stream started (%d messages)", len(messages))
-        session, latest = self._create_chat(messages)
-        stream = await session.send_message_stream(latest)
-        async for chunk in stream:
-            text = chunk.text
-            if text:
-                yield text
-        logger.info("GeminiClient.chat_stream finished")
+        try:
+            session, latest = self._create_chat(messages)
+            stream = await session.send_message_stream(latest)
+            async for chunk in stream:
+                text = chunk.text
+                if text:
+                    yield text
+            logger.info("GeminiClient.chat_stream finished")
+        except GeminiAPIError as exc:
+            yield f"\n[⚠️ Gemini Error: {exc}]"

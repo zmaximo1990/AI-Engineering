@@ -2,6 +2,10 @@
 
 Async Python demo that talks to **OpenAI**, **Anthropic**, and **Gemini** through a shared client interface (`chat` / `chat_stream`), a small factory, and Pydantic schemas.
 
+## How it works
+
+When you run the app, it asks you to type the question or message you want to send. That prompt is then forwarded to **OpenAI**, **Anthropic**, and **Gemini** so you can compare their answers side by side (via `chat` and/or `chat_stream`).
+
 ## Requirements
 
 - **Python 3.12.13** (for local runs), or **Docker** (for containerized runs)
