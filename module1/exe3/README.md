@@ -1,4 +1,4 @@
-# Exercise 3 — Multi-provider LLM clients
+# Code Delivery for Modeule #1 | Multi-provider LLM clients
 
 Async Python demo that talks to **OpenAI**, **Anthropic**, and **Gemini** through a shared client interface (`chat` / `chat_stream`), a small factory, and Pydantic schemas.
 
