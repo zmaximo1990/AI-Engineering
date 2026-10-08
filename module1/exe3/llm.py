@@ -8,7 +8,7 @@ from google import genai
 from google.genai.errors import APIError as GeminiAPIError
 from openai import AsyncOpenAI, OpenAIError
 from pydantic import SecretStr
-from decorators import limit_concurrency, sem
+from decorators import anthropic_sem, gemini_sem, openai_sem, limit_concurrency
 from schemas import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_TEMPERATURE,
@@ -114,7 +114,7 @@ class OpenAIClient(BaseLLMClient):
             kwargs["temperature"] = self.temperature
         return kwargs
 
-    @limit_concurrency(sem)
+    @limit_concurrency(openai_sem)
     async def chat(self, messages: list[ChatMessage]) -> ModelResponse:
         logger.info("OpenAIClient.chat started (%d messages)", len(messages))
         try:
@@ -131,7 +131,7 @@ class OpenAIClient(BaseLLMClient):
             # Catching specific errors like APITimeoutError / APIConnectionError / RateLimitError, we could trigger backoff and retry logic here.
             return self._error_response(exc)
 
-    @limit_concurrency(sem)
+    @limit_concurrency(openai_sem)
     async def chat_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
         logger.info("OpenAIClient.chat_stream started (%d messages)", len(messages))
         try:
@@ -179,7 +179,7 @@ class AnthropicClient(BaseLLMClient):
         ]
         return system, conversation
 
-    @limit_concurrency(sem)
+    @limit_concurrency(anthropic_sem)
     async def chat(self, messages: list[ChatMessage]) -> ModelResponse:
         logger.info("AnthropicClient.chat started (%d messages)", len(messages))
         system, conversation = self._to_anthropic_payload(messages)
@@ -204,7 +204,7 @@ class AnthropicClient(BaseLLMClient):
             return self._error_response(exc)
 
 
-    @limit_concurrency(sem)
+    @limit_concurrency(anthropic_sem)
     async def chat_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
         logger.info("AnthropicClient.chat_stream started (%d messages)", len(messages))
         system, conversation = self._to_anthropic_payload(messages)
@@ -281,7 +281,7 @@ class GeminiClient(BaseLLMClient):
         )
         return session, latest
 
-    @limit_concurrency(sem)
+    @limit_concurrency(gemini_sem)
     async def chat(self, messages: list[ChatMessage]) -> ModelResponse:
         logger.info("GeminiClient.chat started (%d messages)", len(messages))
         try:
@@ -294,7 +294,7 @@ class GeminiClient(BaseLLMClient):
             # Catching specific errors like APITimeoutError / APIConnectionError / RateLimitError, we could trigger backoff and retry logic here.
             return self._error_response(exc)
 
-    @limit_concurrency(sem)
+    @limit_concurrency(gemini_sem)
     async def chat_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
         logger.info("GeminiClient.chat_stream started (%d messages)", len(messages))
         try:

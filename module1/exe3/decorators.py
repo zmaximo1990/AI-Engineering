@@ -6,9 +6,14 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import cast
 
 """
-We are using a semaphore to limit the number of concurrent calls to the APIs.
+One semaphore per provider. A 429 is enforced by that provider, so OpenAI
+traffic must not consume Anthropic or Gemini permits. SEMAPHORE_LIMIT is the
+cap for each provider, not a shared pool.
 """
-sem = asyncio.Semaphore(int(os.environ.get("SEMAPHORE_LIMIT", 10)))
+_limit = int(os.environ.get("SEMAPHORE_LIMIT", 10))
+openai_sem = asyncio.Semaphore(_limit)
+anthropic_sem = asyncio.Semaphore(_limit)
+gemini_sem = asyncio.Semaphore(_limit)
 
 """
 Decorator to limit the number of concurrent calls to the APIs.
