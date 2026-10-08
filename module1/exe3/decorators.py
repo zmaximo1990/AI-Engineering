@@ -10,10 +10,10 @@ logger = logging.getLogger(__name__)
 
 """
 One semaphore per provider. A 429 is enforced by that provider, so OpenAI
-traffic must not consume Anthropic or Gemini permits. SEMAPHORE_LIMIT is the
-cap for each provider, not a shared pool.
+traffic must not consume Anthropic or Gemini permits. DEFAULT_CONCURRENCY_LIMIT
+is the cap for each provider, not a shared pool.
 """
-_limit = int(os.environ.get("SEMAPHORE_LIMIT", 10))
+_limit = int(os.environ.get("DEFAULT_CONCURRENCY_LIMIT", 10))
 openai_sem = asyncio.Semaphore(_limit)
 anthropic_sem = asyncio.Semaphore(_limit)
 gemini_sem = asyncio.Semaphore(_limit)
@@ -56,10 +56,10 @@ def limit_concurrency[**P, R](
 
 
 """
-Abort a call that exceeds TIMEOUT seconds (default 60). TimeoutError is logged
+Abort a call that exceeds DEFAULT_TIMEOUT seconds (default 60). TimeoutError is logged
 and swallowed so one slow provider does not abort the rest of the run.
 """
-_raw_timeout = os.environ.get("TIMEOUT", "").strip()
+_raw_timeout = os.environ.get("DEFAULT_TIMEOUT", "").strip()
 _timeout_seconds = int(_raw_timeout) if _raw_timeout else 60
 
 
