@@ -1,13 +1,13 @@
+# Load env as soon as possible
+from dotenv import load_dotenv
+load_dotenv()
+
 import argparse
 import asyncio
 import logging
-from dotenv import load_dotenv
-
 from llm import BaseLLMClient
 from factory import LLMFactory
 from schemas import ChatMessage, LLMConfig, Provider, Role
-
-load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
