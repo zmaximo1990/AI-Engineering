@@ -16,7 +16,10 @@ logging.basicConfig(
 SEMAPHORE_LIMIT = 3
 MIN_LATENCY = 0.5
 MAX_LATENCY = 2.5
-TIMEOUT = 1
+TIMEOUT = 10
+OPENAI_TASKS_COUNT = 5
+ANTHROPIC_TASKS_COUNT = 5
+LLAMA_TASKS_COUNT = 5
 
 """
 We are using a semaphore to limit the number of concurrent calls to the APIs.
@@ -48,7 +51,7 @@ async def openai_call(text: str) -> dict:
     We are calling the OpenAI API.
     """
 
-    logging.info(f"Calling to OpenAI")
+    logging.info(f"Calling to OpenAI for {text}")
     await asyncio.sleep(random.uniform(MIN_LATENCY, MAX_LATENCY))
     logger.info(f"OpenAI done for {text}")
     # Simulate a payload response
@@ -60,7 +63,7 @@ async def anthropic_call(text: str) -> dict:
     We are calling the Anthropic API.
     """
 
-    logging.info(f"Calling to Anthropic")
+    logging.info(f"Calling to Anthropic for {text}")
     await asyncio.sleep(random.uniform(MIN_LATENCY, MAX_LATENCY))
     logger.info(f"Anthropic done for {text}")
     # Simulate a payload response
@@ -72,7 +75,7 @@ async def llama_call(text: str) -> dict:
     We are calling the Llama API.
     """
 
-    logging.info(f"Calling to Llama")
+    logging.info(f"Calling to Llama for {text}")
     await asyncio.sleep(random.uniform(MIN_LATENCY, MAX_LATENCY))
     logger.info(f"Llama done for {text}")
     # Simulate a payload response
@@ -85,9 +88,9 @@ async def main() -> None:
     """
 
     tasks = []
-    tasks.append(openai_call("Hello, world!"))
-    tasks.append(anthropic_call("Hello, world!"))
-    tasks.append(llama_call("Hello, world!"))
+    tasks.extend([openai_call(f"Hello OpenAI, {i}!") for i in range(OPENAI_TASKS_COUNT)])
+    tasks.extend([anthropic_call(f"Hello Anthropic, {i}!") for i in range(ANTHROPIC_TASKS_COUNT)])
+    tasks.extend([llama_call(f"Hello Llama, {i}!") for i in range(LLAMA_TASKS_COUNT)])
     try:
         start_time = time.perf_counter()
         async with asyncio.timeout(TIMEOUT):
