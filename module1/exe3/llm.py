@@ -8,12 +8,11 @@ from google import genai
 from google.genai.errors import APIError as GeminiAPIError
 from openai import AsyncOpenAI, OpenAIError
 from pydantic import SecretStr
-from decorators import anthropic_sem, gemini_sem, openai_sem, limit_concurrency
+from decorators import anthropic_sem, gemini_sem, openai_sem, limit_concurrency, timeout
 from schemas import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_TEMPERATURE,
     ChatMessage,
-    LLMConfig,
     ModelResponse,
     Provider,
     Role,
@@ -115,6 +114,7 @@ class OpenAIClient(BaseLLMClient):
         return kwargs
 
     @limit_concurrency(openai_sem)
+    @timeout
     async def chat(self, messages: list[ChatMessage]) -> ModelResponse:
         logger.info("OpenAIClient.chat started (%d messages)", len(messages))
         try:
@@ -132,6 +132,7 @@ class OpenAIClient(BaseLLMClient):
             return self._error_response(exc)
 
     @limit_concurrency(openai_sem)
+    @timeout
     async def chat_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
         logger.info("OpenAIClient.chat_stream started (%d messages)", len(messages))
         try:
@@ -180,6 +181,7 @@ class AnthropicClient(BaseLLMClient):
         return system, conversation
 
     @limit_concurrency(anthropic_sem)
+    @timeout
     async def chat(self, messages: list[ChatMessage]) -> ModelResponse:
         logger.info("AnthropicClient.chat started (%d messages)", len(messages))
         system, conversation = self._to_anthropic_payload(messages)
@@ -205,6 +207,7 @@ class AnthropicClient(BaseLLMClient):
 
 
     @limit_concurrency(anthropic_sem)
+    @timeout
     async def chat_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
         logger.info("AnthropicClient.chat_stream started (%d messages)", len(messages))
         system, conversation = self._to_anthropic_payload(messages)
@@ -282,6 +285,7 @@ class GeminiClient(BaseLLMClient):
         return session, latest
 
     @limit_concurrency(gemini_sem)
+    @timeout
     async def chat(self, messages: list[ChatMessage]) -> ModelResponse:
         logger.info("GeminiClient.chat started (%d messages)", len(messages))
         try:
@@ -295,6 +299,7 @@ class GeminiClient(BaseLLMClient):
             return self._error_response(exc)
 
     @limit_concurrency(gemini_sem)
+    @timeout
     async def chat_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
         logger.info("GeminiClient.chat_stream started (%d messages)", len(messages))
         try:
