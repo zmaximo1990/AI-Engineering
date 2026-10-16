@@ -37,38 +37,51 @@ En el siguiente ejercicio, aplicarás estos conceptos para convertir una cadena 
 """
 
 import asyncio
-from typing import List, Optional
-from pydantic import BaseModel, Field
+from typing import List
+import os
+from openai import OpenAIError
+from pydantic import BaseModel, Field, ValidationError
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
-# TODO 1: Define la clase Pydantic 'EntityExtraction' 
-# Debe tener: topic (str), entities (Lista de str), y sentiment_score (float entre 0 y 1)
+MODEL = os.getenv("MODEL", "gpt-4o")
+TEMPERATURE = os.getenv("TEMPERATURE", 0)
+
 class EntityExtraction(BaseModel):
-    pass
+    topic: str = Field(description="Main topic of the analyzed text")
+    entities: List[str] = Field(description="List of entities mentioned in the text")
+    sentiment_score: float = Field(
+        ge=0,
+        le=1,
+        description="Sentiment score between 0 (negative) and 1 (positive)",
+    )
 
 async def run_validated_chain(text: str):
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
-    
-    # TODO 2: Configura el modelo para usar la salida estructurada con Pydantic
-    # Tip: Usa el método .with_structured_output()
-    structured_llm = None 
-    
-    # TODO 3: Agrega una estrategia de reintento con .with_retry() 
-    # para que sea resiliente ante fallos de conexión (máximo 3 intentos).
-    resilient_llm = None
-    
+    primary_llm = (
+        ChatOpenAI(model=MODEL, temperature=TEMPERATURE)
+        .with_structured_output(EntityExtraction)
+        .with_retry(stop_after_attempt=3, wait_exponential_jitter=True)
+    )
+    fallback_llm = (
+        ChatOpenAI(model="gpt-4o-mini", temperature=TEMPERATURE)
+        .with_structured_output(EntityExtraction)
+        .with_retry(stop_after_attempt=2, wait_exponential_jitter=True)
+    )
+    resilient_llm = primary_llm.with_fallbacks([fallback_llm])
+
     prompt = ChatPromptTemplate.from_messages([
         ("system", "Analiza el texto y extrae las entidades."),
         ("human", "{input}")
     ])
-    
-    # TODO 4: Une el prompt con el resilient_llm y ejecuta asíncronamente
-    # No olvides manejar excepciones con try/except para capturar fallos de validación
+
     try:
-        pass
-    except Exception as e:
-        print(f"Error: {e}")
+        chain = prompt | resilient_llm
+        result = await chain.ainvoke({"input": text})
+        print(result)
+    except ValidationError as e:
+        print(f"Validation error: {e}")
+    except OpenAIError as e:
+        print(f"OpenAI SDK error: {e}")
 
 if __name__ == "__main__":
     sample_text = "LangGraph es una extensión de LangChain para agentes cíclicos."
