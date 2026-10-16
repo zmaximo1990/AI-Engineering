@@ -23,38 +23,137 @@ A continuación, implementaremos una base sólida que maneje estas diferencias d
 
 
 import asyncio
+import logging
+import os
 from abc import ABC, abstractmethod
 from enum import Enum
-from pydantic import BaseModel, SecretStr
-# TODO: Importa los clientes asíncronos de openai y anthropic
+
+from anthropic import AnthropicError, AsyncAnthropic
+from openai import AsyncOpenAI, OpenAIError
+from pydantic import BaseModel, Field, SecretStr, ValidationError
+
+logger = logging.getLogger(__name__)
+
 
 class Provider(str, Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
 
+
 class LLMConfig(BaseModel):
-    """
-    TODO: Define los campos para las API Keys usando SecretStr
-    y una validación para asegurar que existan cuando se necesiten.
-    """
-    pass
+    """Non-secret client options. API keys are read inside each client."""
+
+    model: str | None = None
+    max_tokens: int = Field(default=256, gt=0)
+
 
 class BaseLLMClient(ABC):
     @abstractmethod
     async def chat(self, prompt: str) -> str:
         pass
 
-# TODO: Implementa OpenAIClient y AnthropicClient heredando de BaseLLMClient
+
+class OpenAIClient(BaseLLMClient):
+    default_model = "gpt-4o-mini"
+    api_key_env = "OPENAI_API_KEY"
+
+    def __init__(self, model: str | None = None, max_tokens: int = 256) -> None:
+        self.model = model or self.default_model
+        self.max_tokens = max_tokens
+        raw = os.environ.get(self.api_key_env, "").strip()
+        if not raw:
+            raise ValueError(
+                f"{self.api_key_env} is not configured. "
+                "Set it in the environment before using OpenAIClient."
+            )
+        api_key = SecretStr(raw)
+        self._client = AsyncOpenAI(api_key=api_key.get_secret_value())
+
+    async def chat(self, prompt: str) -> str:
+        response = await self._client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=self.max_tokens,
+        )
+        return response.choices[0].message.content or ""
+
+
+class AnthropicClient(BaseLLMClient):
+    default_model = "claude-haiku-4-5-20251001"
+    api_key_env = "ANTHROPIC_API_KEY"
+
+    def __init__(self, model: str | None = None, max_tokens: int = 256) -> None:
+        self.model = model or self.default_model
+        self.max_tokens = max_tokens
+        raw = os.environ.get(self.api_key_env, "").strip()
+        if not raw:
+            raise ValueError(
+                f"{self.api_key_env} is not configured. "
+                "Set it in the environment before using AnthropicClient."
+            )
+        api_key = SecretStr(raw)
+        self._client = AsyncAnthropic(api_key=api_key.get_secret_value())
+
+    async def chat(self, prompt: str) -> str:
+        response = await self._client.messages.create(
+            model=self.model,
+            max_tokens=self.max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.content[0].text if response.content else ""
+
 
 class LLMFactory:
     @staticmethod
     def create_client(provider: Provider, config: LLMConfig) -> BaseLLMClient:
-        # TODO: Implementa la lógica de selección de cliente
-        pass
+        kwargs = {"model": config.model, "max_tokens": config.max_tokens}
+        if provider is Provider.OPENAI:
+            return OpenAIClient(**kwargs)
+        if provider is Provider.ANTHROPIC:
+            return AnthropicClient(**kwargs)
+        raise ValueError(f"Unsupported provider: {provider!r}")
+
 
 async def main():
-    # TODO: Instancia la configuración y crea un cliente usando el Factory
-    pass
+    provider_raw = os.environ.get("PROVIDER", "openai").strip().lower()
+    try:
+        provider = Provider(provider_raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"Invalid PROVIDER={provider_raw!r}. Use 'openai' or 'anthropic'."
+        ) from exc
+
+    config = LLMConfig()
+    client = LLMFactory.create_client(provider, config)
+
+    prompt = "Say hello in one short sentence."
+    try:
+        logger.info("Calling %s.chat (model=%s)", type(client).__name__, client.model)
+        answer = await client.chat(prompt)
+    except ValidationError:
+        logger.exception(
+            "Validation error before/during chat for provider=%s model=%s",
+            provider.value,
+            client.model,
+        )
+        raise
+    except (OpenAIError, AnthropicError):
+        logger.exception(
+            "SDK error from %s.chat (provider=%s model=%s prompt=%r)",
+            type(client).__name__,
+            provider.value,
+            client.model,
+            prompt,
+        )
+        raise
+
+    print(f"{provider.value}: {answer}")
+
+
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     asyncio.run(main())
