@@ -1,0 +1,6 @@
+flowchart TD
+    start([Start]) --> query[Input query]
+    query --> embeddings[Embeddings: turn the query into a vector]
+    embeddings --> search[Semantic search: similarity against the stored vectors]
+    search --> docs[Return the list of most similar documents]
+    docs --> endNode([End])

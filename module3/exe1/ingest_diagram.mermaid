@@ -1,0 +1,7 @@
+flowchart TD
+    start([Inicio]) --> bigText[Texto largo]
+    bigText --> chunking[Chunking: dividir el texto en fragmentos]
+    chunking --> clean[Limpiar el texto de cada fragmento]
+    clean --> embeddings[Embeddings: convertir cada fragmento en un vector]
+    embeddings --> store[Almacenar fragmentos y vectores]
+    store --> endNode([Fin])

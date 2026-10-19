@@ -1,0 +1,88 @@
+# Script result
+
+[0] Cada cambio aprobado se publica solo en el entorno que usan los clientes, mediante un pipeline.
+[1] El equipo libera versiones nuevas sin copiar archivos a mano, gracias a la integración y la entrega continuas.
+[2] Cuando el código supera las pruebas, un proceso automático lo instala en los servidores que atienden a los usuarios.
+[3] Las actualizaciones llegan a producción por un flujo que compila, verifica y deja la versión reciente en marcha.
+[4] El sistema pone en línea el build válido apenas el repositorio confirma que esa revisión está lista.
+[5] El servicio de entrega a domicilio es excelente: el pedido llega siempre a tiempo.
+[6] El pipeline de la planta industrial transporta piezas de un extremo al otro de la fábrica.
+
+0 vs 1: 0.0169
+0 vs 2: 0.1932
+0 vs 3: 0.0873
+0 vs 4: 0.1046
+0 vs 5: 0.0394
+0 vs 6: 0.0866
+1 vs 2: 0.0152
+1 vs 3: 0.0739
+1 vs 4: 0.0472
+1 vs 5: 0.0953
+1 vs 6: 0.1434
+2 vs 3: 0.1259
+2 vs 4: 0.0939
+2 vs 5: 0.0354
+2 vs 6: 0.0364
+3 vs 4: 0.0541
+3 vs 5: 0.0000
+3 vs 6: 0.0907
+4 vs 5: 0.1098
+4 vs 6: 0.0421
+5 vs 6: 0.1877
+
+# Source code
+
+"""Cosine similarity across every phrase in phrases.md.
+
+scikit-learn turns each phrase into a numeric TF-IDF vector, then
+cosine_similarity scores every pair of those vectors.
+"""
+
+from pathlib import Path
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+PHRASES_PATH = Path(__file__).with_name("phrases.md")
+
+
+def load_phrases(path: Path) -> list[str]:
+    # Keep only markdown bullets; headings are labels, not phrases.
+    phrases = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith("- "):
+            phrases.append(line[2:].strip())
+    return phrases
+
+
+def main() -> None:
+    phrases = load_phrases(PHRASES_PATH)
+    # TF-IDF weights words by how distinctive they are across the phrase set.
+    vectors = TfidfVectorizer().fit_transform(phrases)
+    # Each cell is the cosine similarity between two phrase vectors, from 0 to 1.
+    matrix = cosine_similarity(vectors)
+
+    for index, phrase in enumerate(phrases):
+        print(f"[{index}] {phrase}")
+
+    print()
+    # Print each unordered pair once; the matrix is symmetric.
+    for i in range(len(phrases)):
+        for j in range(i + 1, len(phrases)):
+            print(f"{i} vs {j}: {matrix[i, j]:.4f}")
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+# Diagram of the process
+
+flowchart TD
+    start([Start]) --> query[Input query]
+    query --> embeddings[Embeddings: turn the query into a vector]
+    embeddings --> search[Semantic search: similarity against the stored vectors]
+    search --> docs[Return the list of most similar documents]
+    docs --> endNode([End])
