@@ -10,11 +10,18 @@ Configurá RecursiveCharacterTextSplitter con chunk_size=500 y chunk_overlap=50,
 Resultado: un pipeline de limpieza → fragmentación listo para poblar tu base vectorial.
 """
 
+import os
 import re
 from typing import List
-
+from dotenv import load_dotenv
 import tiktoken # use OpenAI tokenizer
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+load_dotenv()
+
+MODEL_ENCODING = os.getenv("MODEL_ENCODING", "cl100k_base")
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "100"))
+CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "20"))
 
 # Repeated page headers from an extracted PDF.
 _PAGE_HEADER = re.compile(r"(?m)^.*Pág\.\s*\d+.*\n?")
@@ -27,9 +34,9 @@ _MULTI_SPACE = re.compile(r"[^\S\n]+")
 class DocumentProcessor:
     def __init__(
         self,
-        model_encoding: str = "cl100k_base",
-        chunk_size: int = 100,
-        chunk_overlap: int = 20,
+        model_encoding: str = MODEL_ENCODING,
+        chunk_size: int = CHUNK_SIZE,
+        chunk_overlap: int = CHUNK_OVERLAP,
     ):
         self.tokenizer = tiktoken.get_encoding(model_encoding)
         self.splitter = RecursiveCharacterTextSplitter(
