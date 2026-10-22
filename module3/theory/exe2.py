@@ -9,6 +9,7 @@ Implementá upsert_documents y semantic_search usando collection.query().
 Resultado: tu VectorMemoryManager listo para poblar y consultar tu base vectorial.
 """
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -104,11 +105,20 @@ if __name__ == "__main__":
         ],
         [{"source": "news"}, {"source": "tech_blog"}, {"source": "tech_blog"}],
     )
-    print("Semantic search results:")
+    query_text = "mejoras en python"
+    print(f"Semantic search results for '{query_text}':")
     print("-" * 50)
-    print(manager.semantic_search("mejoras en python"))
+    print(json.dumps(manager.semantic_search(query_text), indent=2, ensure_ascii=False))
     print("-" * 50)
-    print(manager.semantic_search("memoria de IA", where={"source": "tech_blog"}))
+    query_text = "memoria de IA"
+    print(f"Semantic search results for '{query_text}':")
+    print(
+        json.dumps(
+            manager.semantic_search(query_text, where={"source": "tech_blog"}),
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
     print("-" * 50)
     manager.delete_by_id(["doc2"])
     print("Number of documents in the collection:", manager.collection.count())
