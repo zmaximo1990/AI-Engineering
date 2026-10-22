@@ -11,11 +11,13 @@ Resultado: tu VectorMemoryManager listo para poblar y consultar tu base vectoria
 
 import json
 import os
+import sqlite3
 from pathlib import Path
 from typing import Any
 
 import chromadb
 from chromadb.api.models import Collection as ChromaDBCollection
+from chromadb.errors import ChromaError
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_core.embeddings import Embeddings
@@ -40,6 +42,14 @@ MODEL_NAME = os.getenv("model_name", "sentence-transformers/all-MiniLM-L6-v2")
 #         return self.embed_documents([text])[0]
 
 embeddings_model: Embeddings = HuggingFaceEmbeddings(model_name=MODEL_NAME)
+
+# Disk failures, the local SQLite store, and Chroma server or internal errors.
+_STORE_ERRORS = (OSError, sqlite3.Error, ChromaError)
+
+
+class VectorMemoryError(Exception):
+    """A vector store read or write failed because of I/O or the database."""
+
 
 class VectorMemoryManager:
     def __init__(
@@ -66,7 +76,10 @@ class VectorMemoryManager:
         metadatas: list[dict[str, Any]],
     ) -> None:
         """Insert documents, or replace them when the id already exists."""
-        self.store.add_texts(texts=documents, metadatas=metadatas, ids=ids)
+        try:
+            self.store.add_texts(texts=documents, metadatas=metadatas, ids=ids)
+        except _STORE_ERRORS as exc:
+            raise VectorMemoryError("Could not write documents to the vector store.") from exc
 
     def semantic_search(
         self,
@@ -75,11 +88,14 @@ class VectorMemoryManager:
         where: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """Return the nearest documents. Lower distance means a closer match."""
-        pairs = self.store.similarity_search_with_score(
-            query_text,
-            k=n_results,
-            filter=where,
-        )
+        try:
+            pairs = self.store.similarity_search_with_score(
+                query_text,
+                k=n_results,
+                filter=where,
+            )
+        except _STORE_ERRORS as exc:
+            raise VectorMemoryError("Could not query the vector store.") from exc
         return [
             {
                 "document": document.page_content,
@@ -91,7 +107,10 @@ class VectorMemoryManager:
 
     def delete_by_id(self, ids: list[str]) -> None:
         """Remove documents by id."""
-        self.store.delete(ids=ids)
+        try:
+            self.store.delete(ids=ids)
+        except _STORE_ERRORS as exc:
+            raise VectorMemoryError("Could not delete documents from the vector store.") from exc
 
 
 if __name__ == "__main__":
