@@ -1,25 +1,62 @@
 import os
 import asyncio
 
+import urllib3
 from dotenv import load_dotenv
 from pinecone import Pinecone, ServerlessSpec
+from pinecone.exceptions import PineconeException, UnauthorizedException
 
 load_dotenv()
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 INDEX_NAME = os.getenv("INDEX_NAME", "module4-index")
 NAMESPACE = os.getenv("NAMESPACE", "dev-env")
+REQUIRED_METADATA_FIELDS = ("topic", "priority")
+
+
+def validate_vector_metadata(vectors: list[tuple]) -> None:
+    """Require every vector to include the metadata fields used at query time."""
+    for vector_id, _values, metadata in vectors:
+        if not isinstance(metadata, dict):
+            raise ValueError(f"Vector '{vector_id}' metadata must be a dict.")
+        missing = [
+            field
+            for field in REQUIRED_METADATA_FIELDS
+            if metadata.get(field) in (None, "")
+        ]
+        if missing:
+            fields = ", ".join(missing)
+            raise ValueError(
+                f"Vector '{vector_id}' is missing required metadata fields: {fields}."
+            )
+
+
+def init_pinecone_client(api_key: str) -> Pinecone:
+    """Create the client and confirm the API key can reach Pinecone."""
+    if not api_key:
+        raise RuntimeError("Set PINECONE_API_KEY in the environment or in the .env file.")
+
+    try:
+        client = Pinecone(api_key=api_key)
+        client.list_indexes()
+    except UnauthorizedException as exc:
+        raise RuntimeError(
+            "Pinecone rejected the API key. Check PINECONE_API_KEY."
+        ) from exc
+    except (PineconeException, urllib3.exceptions.HTTPError, OSError) as exc:
+        raise RuntimeError(
+            "Could not connect to Pinecone. Check your network and credentials."
+        ) from exc
+
+    return client
 
 
 async def setup_vector_infrastructure(index_name: str, dimension: int):
     """
     Set up Pinecone Serverless infrastructure and load an initial batch of vectors.
     """
-    if not PINECONE_API_KEY:
-        raise RuntimeError("Set PINECONE_API_KEY in the environment or in the .env file.")
-
     # 1. Initialize the Pinecone client
-    pc = Pinecone(api_key=PINECONE_API_KEY)
+    pc = init_pinecone_client(PINECONE_API_KEY)
 
     # 2. Create the index if it does not exist. create_index waits until it is ready.
     if index_name not in pc.list_indexes().names():
@@ -39,6 +76,7 @@ async def setup_vector_infrastructure(index_name: str, dimension: int):
         ("vec2", [0.2] * dimension, {"topic": "embeddings", "priority": "medium"}),
         ("vec3", [0.3] * dimension, {"topic": "namespaces", "priority": "low"}),
     ]
+    validate_vector_metadata(vectors)
     index.upsert(vectors=vectors, namespace=NAMESPACE)
 
     # 5. Stats can take a few seconds to reflect the upsert
