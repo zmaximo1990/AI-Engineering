@@ -1,0 +1,11 @@
+flowchart TD
+    START([START]) --> Triage["Triage (One System Call)<br/>classifies the question"]
+    Triage -->|Askint Intent| Search_Knowledge["Search_Knowledge<br/>searches for solutions, simulates RAG<br/>attempts = attempts + 1"]
+    Triage -->|CallingTool Intent| Tool_Calling["Tool_Calling"]
+    Search_Knowledge -->|"Call LLM with RAG context"| LLM_Call["LLM Call"]
+    Tool_Calling -->|"Call LLM with ToolMessage"| LLM_Call
+    LLM_Call --> Evaluator["Evaluator<br/>does the solution answer the question?"]
+    Evaluator -->|"good solution"| END([END])
+    Evaluator -->|"insufficient solution<br/>and attempts less than 3"| Triage
+    Evaluator -->|"failed attempts = 3"| Human_Support["Human_Support<br/>is_escalated = True"]
+    Human_Support --> END
