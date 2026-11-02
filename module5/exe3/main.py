@@ -31,7 +31,7 @@ class WeatherInput(BaseModel):
     "get_weather",
     args_schema=WeatherInput,
     description="Get the current weather for a location.",
-    return_direct=True,
+    return_direct=False,
 )
 def get_weather(location: str) -> str:
     return f"The weather in {location} is sunny and 22°C."
